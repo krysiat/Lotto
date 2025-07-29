@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: Lotto-Backend
+  datasource:
+    url: jdbc:postgresql://localhost:5433/lotto
+    username: root
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+  config:
+    import: optional:classpath:application-secret.yaml
+
+server:
+  port: 8081
