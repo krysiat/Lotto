@@ -6,61 +6,31 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
-import pl.lotto.entity.lotto.LottoDraw;
-import pl.lotto.entity.lotto.LottoNumberStat;
 import pl.lotto.entity.dto.LottoDrawDTO;
 import pl.lotto.entity.dto.LottoResultResponseDTO;
+import pl.lotto.entity.lotto.LottoDraw;
 import pl.lotto.repository.LottoDrawsRepository;
-import pl.lotto.repository.LottoNumberStatsRepository;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class LottoOpenAPIService {
     private final LottoDrawsRepository lottoDrawRepository;
-    private final LottoNumberStatsRepository lottoNumberStatsRepository;
+    private final LottoService lottoService;
+
     private final RestTemplate restTemplate;
     @Value("${lotto.api.secret}")
     private String secret;
 
     public LottoOpenAPIService(LottoDrawsRepository lottoDrawRepository,
-                               LottoNumberStatsRepository lottoNumberStatsRepository,
+                               LottoService lottoService,
                                RestTemplate restTemplate) {
         this.lottoDrawRepository = lottoDrawRepository;
-        this.lottoNumberStatsRepository = lottoNumberStatsRepository;
+        this.lottoService = lottoService;
         this.restTemplate = restTemplate;
     }
-
-    public void generateAndSaveNumberStats() {
-        List<Object[]> stats = lottoDrawRepository.fetchNumberStats();
-
-        List<LocalDate> allDates = lottoDrawRepository.findAll().stream()
-                .map(LottoDraw::getDrawDate)
-                .sorted()
-                .collect(Collectors.toList());
-
-        List<LottoNumberStat> statsToSave = stats.stream().map(row -> {
-            Integer number = ((Number) row[0]).intValue();
-            Integer occurrences = ((Number) row[1]).intValue();
-            LocalDate lastDrawn = (LocalDate) row[2];
-
-            Integer skipCount = (Integer) (allDates.size() - allDates.indexOf(lastDrawn) - 1);
-
-            return LottoNumberStat.builder()
-                    .number(number)
-                    .occurrences(occurrences)
-                    .lastDrawn(lastDrawn)
-                    .skipCount(skipCount)
-                    .build();
-        }).collect(Collectors.toList());
-
-        lottoNumberStatsRepository.saveAll(statsToSave);
-    }
-
 
     public void fetchAndSaveResultsForDates(LocalDate startDate, LocalDate endDate) {
         while (!startDate.isAfter(endDate)) {
@@ -71,7 +41,7 @@ public class LottoOpenAPIService {
                         .numbers(dto.getNumbers())
                         .build());
                 try {
-                    // Lotto API cannot handle too much requests. Sometimes works with 2s, but 5s is safe.
+                    // Lotto API cannot handle too much requests. Sometimes works with 2 s, but 5 s is safe.
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -81,7 +51,7 @@ public class LottoOpenAPIService {
             startDate = startDate.plusDays(1);
         }
         // to update every time there are new records
-        generateAndSaveNumberStats();
+        lottoService.generateAndSaveFullNumberStats();
     }
 
     public LottoDrawDTO fetchLottoResultForDate(LocalDate drawDate) {
