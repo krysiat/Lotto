@@ -2,10 +2,7 @@ package pl.lotto.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -120,7 +117,13 @@ public class LottoOpenAPIService {
             return null;
         } catch (HttpClientErrorException.TooManyRequests e) {
             log.warn("Osiągnięto limit zapytań do Lotto API (kod 429).", e);
-            return null;
+            throw new HttpClientErrorException(
+                    HttpStatus.TOO_MANY_REQUESTS,
+                    "Too many requests to Lotto OpenAPI. Set longer Thread.sleep time",
+                    HttpHeaders.EMPTY,
+                    null,
+                    null
+            );
         } catch (Exception e) {
             log.info("Inny błąd podczas pobierania danych z Lotto API", e);
             return null;
